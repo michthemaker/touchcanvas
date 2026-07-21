@@ -1,0 +1,14 @@
+[package]
+name = "touchcanvas"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+windows = { version = "0.58", features = [
+  # HID - reading touchpad data
+  "Win32_Devices_HumanInterfaceDevice",
+  # Core types - BOOL, HANDLE, RESULT
+  "Win32_Foundation",
+  # Filesystem - I/O
+  "Win32_Storage_FileSystem",
+] }
