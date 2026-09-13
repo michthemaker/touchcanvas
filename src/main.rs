@@ -3,20 +3,27 @@ use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::Win32::Devices::HumanInterfaceDevice::{
+	HID_USAGE_PAGE_DIGITIZER,
+	HID_USAGE_DIGITIZER_TOUCH_PAD
+};
 use windows::core::*;
 
-// Message-only windows have no visible UI — HWND_MESSAGE (-3) is the magic parent value Windows uses for them
+/// This is a message only window, we use it to receive OS messages
+/// No visible UI — HWND_MESSAGE (-3) is the magic parent value Windows uses for them
 const HWND_MESSAGE_PARENT: HWND = HWND(-3isize as _);
 
-// WndProc is the callback Windows calls whenever an event (message) happens on our window
+/// The event handler
+/// called whenever something happens to the Invisible Window
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
 	match msg {
+		// windows sends WM_INPUT (255) when raw input is received
 		WM_INPUT => {
-			// lparam carries a handle to the raw input data — pass it straight through
 			unsafe { handle_raw_input(lparam) };
 			LRESULT(0)
 		}
 		WM_DESTROY => {
+			// window is being destroyed
 			unsafe { PostQuitMessage(0) };
 			LRESULT(0)
 		}
@@ -25,6 +32,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 	}
 }
 
+/// lparam is passed to functions to getraw input data
 unsafe fn handle_raw_input(lparam: LPARAM) {
 	let header_size = mem::size_of::<RAWINPUTHEADER>() as u32;
 
@@ -108,19 +116,20 @@ fn main() -> Result<()> {
 		)?;
 
 		// Tell Windows: send us raw input from touchpad devices (0x0D = Digitizers, 0x05 = Touch Pad)
-		// RIDEV_INPUTSINK — receive input even when our window isn't in the foreground
 		let rid = RAWINPUTDEVICE {
-			usUsagePage: 0x0D,
-			usUsage: 0x05,
+			usUsagePage: HID_USAGE_PAGE_DIGITIZER,
+			usUsage: HID_USAGE_DIGITIZER_TOUCH_PAD,
+			// RIDEV_INPUTSINK — receive input even when our window isn't in the foreground
 			dwFlags: RIDEV_INPUTSINK,
 			hwndTarget: hwnd,
 		};
 		RegisterRawInputDevices(&[rid], mem::size_of::<RAWINPUTDEVICE>() as u32)?;
 
-		// Standard Windows message loop — blocks here, dispatching events to wndproc
 		let mut msg = MSG::default();
+		// Standard Windows message loop — blocks here using Windows kernel sleep, dispatching events to wndproc
 		while GetMessageW(&mut msg, None, 0, 0).into() {
 			let _ = TranslateMessage(&msg);
+			// somehow next line makes windows invoke our wndproc function
 			DispatchMessageW(&msg);
 		}
 	}
