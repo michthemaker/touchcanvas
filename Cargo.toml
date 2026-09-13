@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+piping = "=1.0.0"
 windows = { version = "0.58", features = [
   # HID - reading touchpad data
   "Win32_Devices_HumanInterfaceDevice",
@@ -13,4 +14,6 @@ windows = { version = "0.58", features = [
   # Filesystem - I/O
   "Win32_Storage_FileSystem",
   "Win32_Security",
+  "Win32_System_IO",
+  "Win32_System_Threading",
 ] }

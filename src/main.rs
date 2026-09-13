@@ -1,7 +1,21 @@
+use piping::pipe;
+use windows::Win32::Storage::FileSystem::FILE_GENERIC_READ;
 use std::mem;
 use std::os::windows::ffi::OsStringExt;
 use windows::Win32::Devices::DeviceAndDriverInstallation::*;
 use windows::Win32::Devices::HumanInterfaceDevice::*;
+use windows::Win32::Storage::FileSystem::{
+	CreateFileW,
+	FILE_FLAG_OVERLAPPED,
+	// flags for share mode of the file
+	FILE_SHARE_READ,
+	FILE_SHARE_WRITE,
+	// what to do about the file already created
+	OPEN_EXISTING,
+	ReadFile,
+};
+use windows::Win32::System::IO::OVERLAPPED;
+use windows::core::PCWSTR;
 
 // the gist is that Windows logs Hid devices' activities in system specific files
 
@@ -22,6 +36,7 @@ fn main() {
 			..Default::default()
 		};
 
+		let mut touchpad_path = String::default();
 		let mut index = 0;
 		while SetupDiEnumDeviceInterfaces(hdevinfo, None, &hid_guid, index, &mut device_interface_data)
 			.is_ok()
@@ -62,39 +77,33 @@ fn main() {
 
 			let path_slice = std::slice::from_raw_parts(path_ptr, len);
 			let path = std::ffi::OsString::from_wide(path_slice);
-			let device_path_str = path.to_string_lossy();
+			// path looks like "?\\hid#..." but should be like "\\\\?\\hid#..."
+			let device_path_str = pipe! {
+				path.to_string_lossy() |>
+				if __.starts_with("?\\") {
+					format!("\\\\?\\{}", &__[2..])
+				} else {
+					__.to_string()
+				}
+			};
 
 			if is_touchpad(&device_path_str) {
-				println!("TOUCHPAD FOUND: {}", device_path_str);
+				touchpad_path = device_path_str;
 			}
 			index += 1;
+		}
+
+		if touchpad_path.chars().count() > 0 {
+			read_touchpad_reports(touchpad_path);
 		}
 
 		let _ = SetupDiDestroyDeviceInfoList(hdevinfo);
 	}
 }
 
+/// accepts a Windows formatted string slice as path
 unsafe fn is_touchpad(path: &str) -> bool {
-	use windows::Win32::Storage::FileSystem::{
-		CreateFileW,
-		FILE_FLAG_OVERLAPPED,
-		// flag for generic read, we just need to access the capabilities
-		// flags for share mode of the file
-		FILE_SHARE_READ,
-		FILE_SHARE_WRITE,
-		// what to do about the file already created
-		OPEN_EXISTING,
-	};
-	use windows::core::PCWSTR;
-
-	// path looks like "?\\hid#..." but should be like "\\\\?\\hid#..."
-	let fixed_path = if path.starts_with("?\\") {
-		format!("\\\\?\\{}", &path[2..])
-	} else {
-		path.to_string()
-	};
-
-	let wide_file_path: Vec<u16> = fixed_path.encode_utf16().chain(std::iter::once(0)).collect();
+	let wide_file_path: Vec<u16> = path.encode_utf16().chain(std::iter::once(0)).collect();
 	// we are opening an existing device system specific file here, hence the OPEN_EXISTING flag to get the file handle.
 	let file_handle = unsafe {
 		CreateFileW(
@@ -111,9 +120,7 @@ unsafe fn is_touchpad(path: &str) -> bool {
 	};
 
 	let file_handle = match file_handle {
-		Ok(h) => {
-			h
-		}
+		Ok(h) => h,
 		Err(_) => return false,
 	};
 
@@ -133,5 +140,80 @@ unsafe fn is_touchpad(path: &str) -> bool {
 		capabilities.UsagePage == 0x0D && capabilities.Usage == 0x05
 	} else {
 		return false;
+	}
+}
+
+/// accepts a Windows formatted string slice as path
+unsafe fn read_touchpad_reports(touchpad_path: String) -> () {
+	// wide string path for Windows
+	let wide_path: Vec<u16> = touchpad_path
+		.to_string()
+		.encode_utf16()
+		.chain(std::iter::once(0))
+		.collect();
+
+	let read_handle = unsafe {
+		CreateFileW(
+			PCWSTR(wide_path.as_ptr()),
+			FILE_GENERIC_READ.0,
+			FILE_SHARE_READ | FILE_SHARE_WRITE,
+			None,
+			OPEN_EXISTING,
+			FILE_FLAG_OVERLAPPED,
+			None,
+		)
+		.expect("Failed to open touchpad file")
+	};
+
+	let mut capabilities = HIDP_CAPS::default();
+	let mut preparsed_data = PHIDP_PREPARSED_DATA::default();
+	unsafe {
+		HidD_GetPreparsedData(read_handle, &mut preparsed_data);
+		// we do the let to tell rust that we know hidp_getcaps returns something but we don't want to use it.
+		let _ = HidP_GetCaps(preparsed_data, &mut capabilities);
+		HidD_FreePreparsedData(preparsed_data);
+	}
+
+	let mut overlapped = OVERLAPPED::default();
+	let event = unsafe {
+		windows::Win32::System::Threading::CreateEventW(None, true, false, None)
+			.expect("Failed to create event")
+	};
+	overlapped.hEvent = event;
+
+	let report_size = capabilities.InputReportByteLength as usize;
+	let mut buffer = vec![0u8; report_size];
+
+	loop {
+		let mut bytes_read = 0u32;
+		let _result = unsafe {
+			ReadFile(
+				read_handle,
+				Some(&mut buffer),
+				Some(&mut bytes_read),
+				Some(&mut overlapped),
+			)
+		};
+
+		println!(
+			"Report {:?}",
+			_result
+		);
+
+		unsafe {
+			windows::Win32::System::Threading::WaitForSingleObject(event, 0xFFFFFFFF);
+			let _ = windows::Win32::System::IO::GetOverlappedResult(
+				read_handle,
+				&overlapped,
+				&mut bytes_read,
+				false,
+			);
+		}
+
+		println!(
+			"Report ({} bytes): {:?}",
+			bytes_read,
+			&buffer[..bytes_read as usize]
+		);
 	}
 }

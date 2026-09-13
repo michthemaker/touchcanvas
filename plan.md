@@ -5,7 +5,7 @@
 - [x] Device discovery & detection (HID enumeration, find Synaptics syna30b0, verify via HID capabilities)
   ```rust
   let hid_guid = HidD_GetHidGuid();
-  if device_path_str.contains("syna30b0") && is_touchpad(&device_path_str) {
+  if is_touchpad(&device_path_str) {
       println!("TOUCHPAD FOUND: {}", device_path_str);
   }
   ```
