@@ -3,6 +3,8 @@ use std::os::windows::ffi::OsStringExt;
 use windows::Win32::Devices::DeviceAndDriverInstallation::*;
 use windows::Win32::Devices::HumanInterfaceDevice::*;
 
+// the gist is that Windows logs Hid devices' activities in system specific files
+
 fn main() {
 	unsafe {
 		let hid_guid = HidD_GetHidGuid();
@@ -62,7 +64,7 @@ fn main() {
 			let path = std::ffi::OsString::from_wide(path_slice);
 			let device_path_str = path.to_string_lossy();
 
-			if device_path_str.contains("syna30b0") && is_touchpad(&device_path_str) {
+			if is_touchpad(&device_path_str) {
 				println!("TOUCHPAD FOUND: {}", device_path_str);
 			}
 			index += 1;
@@ -76,8 +78,7 @@ unsafe fn is_touchpad(path: &str) -> bool {
 	use windows::Win32::Storage::FileSystem::{
 		CreateFileW,
 		FILE_FLAG_OVERLAPPED,
-		// flag for generic read, we just need to access the caps
-		FILE_GENERIC_READ,
+		// flag for generic read, we just need to access the capabilities
 		// flags for share mode of the file
 		FILE_SHARE_READ,
 		FILE_SHARE_WRITE,
@@ -86,11 +87,21 @@ unsafe fn is_touchpad(path: &str) -> bool {
 	};
 	use windows::core::PCWSTR;
 
-	let wide_file_path: Vec<u16> = path.encode_utf16().chain(std::iter::once(0)).collect();
+	// path looks like "?\\hid#..." but should be like "\\\\?\\hid#..."
+	let fixed_path = if path.starts_with("?\\") {
+		format!("\\\\?\\{}", &path[2..])
+	} else {
+		path.to_string()
+	};
+
+	let wide_file_path: Vec<u16> = fixed_path.encode_utf16().chain(std::iter::once(0)).collect();
+	// we are opening an existing device system specific file here, hence the OPEN_EXISTING flag to get the file handle.
 	let file_handle = unsafe {
 		CreateFileW(
 			PCWSTR(wide_file_path.as_ptr()),
-			FILE_GENERIC_READ.0,
+			// we use 0 and not FILE_GENERIC_READ.0 because the device is system-protected so we don't input spoof.
+			// using 0 means we get a metadata-only handle that bypasses the security restriction
+			0,
 			FILE_SHARE_READ | FILE_SHARE_WRITE,
 			None,
 			OPEN_EXISTING,
@@ -99,26 +110,24 @@ unsafe fn is_touchpad(path: &str) -> bool {
 		)
 	};
 
-			println!("handle: {:?}, {:?}", file_handle, (unsafe { PCWSTR(wide_file_path.as_ptr()).to_string() }).expect("didnt work"));
-
 	let file_handle = match file_handle {
 		Ok(h) => {
-			println!("handle: {:?}", h);
 			h
-		},
+		}
 		Err(_) => return false,
 	};
 
-	let preparsed_data: *mut PHIDP_PREPARSED_DATA = std::ptr::null_mut();
-	if (unsafe { HidD_GetPreparsedData(file_handle, preparsed_data) }).as_bool() {
+	let mut preparsed_data: PHIDP_PREPARSED_DATA = PHIDP_PREPARSED_DATA::default();
+	// pull Hid descriptor from device file handle into preparsed_data
+	if (unsafe { HidD_GetPreparsedData(file_handle, &mut preparsed_data) }).as_bool() {
 		let mut capabilities = HIDP_CAPS::default();
-		if (unsafe { HidP_GetCaps(*preparsed_data, &mut capabilities) }).is_err() {
+		if (unsafe { HidP_GetCaps(preparsed_data, &mut capabilities) }).is_err() {
 			return false;
 		}
 
 		// free preparsed data
 		unsafe {
-			HidD_FreePreparsedData(*preparsed_data);
+			HidD_FreePreparsedData(preparsed_data);
 		}
 		// Usage Page = 0x0D which is Digitisers and Usage is 0x05 Touch Pad
 		capabilities.UsagePage == 0x0D && capabilities.Usage == 0x05
