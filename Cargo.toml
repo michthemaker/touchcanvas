@@ -4,16 +4,18 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-piping = "=1.0.0"
 windows = { version = "0.58", features = [
-  # HID - reading touchpad data
-  "Win32_Devices_HumanInterfaceDevice",
-  "Win32_Devices_DeviceAndDriverInstallation",
-  # Core types - BOOL, HANDLE, RESULT
+  # Core types — BOOL, HANDLE, HRESULT, etc.
   "Win32_Foundation",
-  # Filesystem - I/O
-  "Win32_Storage_FileSystem",
-  "Win32_Security",
-  "Win32_System_IO",
-  "Win32_System_Threading",
+  # GetModuleHandleW — needed to get the current exe's HMODULE for window creation
+  "Win32_System_LibraryLoader",
+  # Window class, message loop, WM_INPUT, WM_DESTROY, DefWindowProcW, etc.
+  "Win32_UI_WindowsAndMessaging",
+  # RAWINPUT, RAWINPUTHEADER, RAWHID, GetRawInputData, RIM_TYPEHID
+  "Win32_UI_Input",
+  # RAWINPUTDEVICE, RegisterRawInputDevices, RIDEV_INPUTSINK
+  "Win32_UI_Input_KeyboardAndMouse",
+  # HidP_GetCaps, HidP_GetData — kept for future HID report field parsing
+  "Win32_Devices_HumanInterfaceDevice",
+  "Win32_Graphics_Gdi",
 ] }

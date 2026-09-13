@@ -3,17 +3,6 @@
 version = 4
 
 [[package]]
-name = "piping"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54f852425c9b67bc52afe42cfe436aca010aa27984c582f1bc4d23462ba11903"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -46,7 +35,6 @@ dependencies = [
 name = "touchcanvas"
 version = "0.1.0"
 dependencies = [
- "piping",
  "windows",
 ]
 
