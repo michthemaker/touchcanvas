@@ -9,10 +9,10 @@
       println!("TOUCHPAD FOUND: {}", device_path_str);
   }
   ```
+- [x] Read touchpad input data (Raw Input Api and Window message sending extract X/Y/pressure/finger count)
 
 ## TODO
 
-- [ ] Read touchpad input data (ReadFile loop, parse HID reports, extract X/Y/pressure/finger count)
 - [ ] Palm rejection classifier (train ML model on touch data to filter accidental palm hits)
 - [ ] Virtual pen device (register fake HID device as pen, Usage Page 0x0D Usage 0x02)
 - [ ] Convert touch to pen (normalize coordinates, map pressure, handle multi-touch)
