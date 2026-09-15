@@ -32,7 +32,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 	}
 }
 
-/// lparam is passed to functions to getraw input data
+/// lparam is passed to functions to get raw input data
 unsafe fn handle_raw_input(lparam: LPARAM) {
 	let header_size = mem::size_of::<RAWINPUTHEADER>() as u32;
 
