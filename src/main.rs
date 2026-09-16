@@ -85,7 +85,7 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
 	}
 }
 
-// how to turn [0u8; 30] to `Contact` type
+// we will ask the device (hp elitebook 845 g7) for the hid report descriptor the touchpad shipped so we know what the thing entails.
 
 fn main() -> Result<()> {
 	unsafe {
