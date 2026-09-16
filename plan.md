@@ -1,4 +1,4 @@
-# To-Do List
+# TouchCanvas Plan
 
 ## DONE
 
@@ -13,17 +13,27 @@
 
 ## TODO
 
-- [ ] Palm rejection classifier
-  - [ ] Decode raw HID reports into contact fields (contact ID, touch state, X/Y, width/height, pressure, and confidence where available)
-  - [ ] Track contacts across successive reports and maintain per-contact history
-  - [ ] Extract classification features (contact area, pressure, movement, duration, edge position, and nearby contacts)
-  - [ ] Add logging/visualization so finger and palm samples can be inspected
-  - [ ] Implement and tune a rule-based classifier first
-  - [ ] Apply classifications to input handling (reject palms from cursor and gesture processing)
-  - [ ] Collect labelled finger/palm samples and evaluate false positives and false negatives
-  - [ ] Consider training an ML model only after the decoded data and rule-based baseline are reliable
-- [ ] Virtual pen device (register fake HID device as pen, Usage Page 0x0D Usage 0x02)
-- [ ] Convert touch to pen (normalize coordinates, map pressure, handle multi-touch)
-- [ ] Stylus tilt/rotation support (if touchpad reports it, map to HID tilt reports)
-- [ ] Test with Krita (verify pen recognition and pressure sensitivity work)
-- [ ] Performance optimization (reduce latency, add config, handle device disconnect)
+- [ ] Decode touchpad HID reports into contact data (contact ID, touch state, X/Y, pressure, and any available stylus-relevant fields)
+- [ ] Track the DIY stylus contact across successive reports
+- [ ] Normalize touchpad coordinates and map them to virtual pen coordinates
+- [ ] Define the pen report format (tip, position, pressure, buttons, and report IDs)
+- [ ] Implement a virtual HID pen device (Usage Page `0x0D`, Usage `0x02`)
+- [ ] Determine the Windows virtual-HID mechanism required to expose the pen device to applications
+- [ ] Convert decoded stylus contact data into pen reports
+- [ ] Decide and implement multi-touch behaviour (initially ignore or reject additional contacts)
+- [ ] Add stylus tilt and rotation support if the touchpad reports usable values
+- [ ] Suppress or block ordinary mouse movement while drawing mode is active
+- [ ] Test pen recognition, pressure sensitivity, and drawing behaviour in Krita
+- [ ] Test the drawing workflow in Figma without requiring the user to hold the left mouse button
+- [ ] Design a reliable mode switch between normal touchpad operation and drawing mode
+- [ ] Add a future command or application for enabling and disabling drawing mode
+- [ ] Optimize performance (reduce latency and report overhead)
+- [ ] Add configuration for coordinate mapping and input behaviour
+- [ ] Handle touchpad disconnects and reconnects
+
+## FUTURE UX
+
+- [ ] Define how users enter and leave drawing mode without accidentally disrupting normal touchpad use
+- [ ] Ensure normal touchpad gestures and mouse movement resume when drawing mode is disabled
+- [ ] Replace the Figma workflow of holding the left mouse button while swiping with explicit drawing-mode behaviour
+- [ ] Build a dedicated app or command for controlling drawing mode
