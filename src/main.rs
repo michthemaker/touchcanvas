@@ -85,6 +85,8 @@ unsafe fn handle_raw_input(lparam: LPARAM) {
 	}
 }
 
+// how to turn [0u8; 30] to `Contact` type
+
 fn main() -> Result<()> {
 	unsafe {
 		let instance: HMODULE = GetModuleHandleW(None)?;
